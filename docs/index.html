@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Diet Clinic</title>
+<meta name="description" content="Bring any language model from Hugging Face, put it on a diet (quantization, pruning or distillation) and see how much weight it loses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E6EFE8;      /* chart-paper green */
+  --sheet:#F9FCF9;      /* the patient file */
+  --grid:#C9DACE;       /* chart lines */
+  --ink:#16243F;        /* navy ink */
+  --ink-soft:#4A5A72;
+  --needle:#D93A2B;     /* the scale's needle */
+  --good:#1E7A4F;
+  --warn:#B7791F;
+  --bad:#C2341F;
+  --focus:#2F6FEB;
+  --display:"Bricolage Grotesque", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1A16; --sheet:#16241F; --grid:#2A3D35; --ink:#E4EEE8; --ink-soft:#A3B6AC;
+    --needle:#FF5A45; --good:#4CC38A; --warn:#E3B04B; --bad:#FF6B57; --focus:#7AA7FF;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1A16; --sheet:#16241F; --grid:#2A3D35; --ink:#E4EEE8; --ink-soft:#A3B6AC;
+  --needle:#FF5A45; --good:#4CC38A; --warn:#E3B04B; --bad:#FF6B57; --focus:#7AA7FF;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:400 17px/1.55 var(--body);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.wrap{max-width:780px; margin:0 auto; padding:40px 16px 80px}
+h1,h2,h3{font-family:var(--display); line-height:1.08; margin:0}
+h1{font-weight:800; font-size:clamp(2.6rem, 7vw, 4.4rem); letter-spacing:-0.03em}
+h2{font-weight:600; font-size:1.6rem; letter-spacing:-0.01em}
+h3{font-weight:600; font-size:1.15rem}
+p{margin:0}
+.lede{font-size:1.15rem; color:var(--ink-soft); max-width:56ch; margin-top:12px}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* The patient file: a sheet of paper, not a card kit */
+.sheet{
+  background:var(--sheet); border:1.5px solid var(--ink); border-radius:4px;
+  padding:24px; margin-top:28px; position:relative;
+}
+.sheet > h2{margin-bottom:14px}
+.hint{color:var(--ink-soft); font-size:.95rem}
+
+/* Hero scale */
+.hero{display:grid; grid-template-columns: 1fr; gap:20px; align-items:end; margin-bottom:8px}
+@media (min-width:720px){ .hero{grid-template-columns: 1.15fr 1fr} }
+.scale{width:100%; max-width:360px; justify-self:end}
+.scale svg{display:block; width:100%; height:auto}
+.scale .face{fill:var(--sheet); stroke:var(--ink); stroke-width:3}
+.scale .tick{stroke:var(--ink); stroke-width:2}
+.scale .tick.minor{stroke-width:1; opacity:.55}
+.scale .lbl{fill:var(--ink); font:700 13px var(--body)}
+.scale .unit{fill:var(--ink-soft); font:400 12px var(--body)}
+.scale .needle{stroke:var(--needle); stroke-width:4; stroke-linecap:round}
+.scale .hub{fill:var(--needle)}
+.scale .ghost{stroke:var(--ink-soft); stroke-width:2.5; stroke-dasharray:5 4; stroke-linecap:round; opacity:.8}
+.scale .readout{fill:var(--ink); font:800 30px var(--display); letter-spacing:-0.02em}
+.scale .caption{fill:var(--ink-soft); font:400 13px var(--body)}
+
+/* Forms */
+label{font-weight:700; display:block; margin-bottom:6px}
+.row{display:flex; gap:10px; flex-wrap:wrap}
+input[type=text], textarea{
+  flex:1 1 280px; min-width:0; font:inherit; color:var(--ink); background:transparent;
+  border:1.5px solid var(--ink); border-radius:4px; padding:12px 14px;
+}
+textarea{width:100%; resize:vertical; min-height:64px}
+input[type=text]:disabled{opacity:.5; cursor:not-allowed}
+button{
+  font:700 1rem var(--body); cursor:pointer; border-radius:4px; padding:12px 20px;
+  border:1.5px solid var(--ink); background:var(--ink); color:var(--sheet);
+}
+button.quiet{background:transparent; color:var(--ink)}
+button:disabled{opacity:.45; cursor:not-allowed}
+.examples{margin-top:10px; font-size:.95rem; color:var(--ink-soft)}
+.examples button{padding:2px 8px; font-weight:400; font-size:.95rem; background:transparent; color:var(--ink); border:1px dashed var(--ink-soft); margin:4px 4px 0 0}
+.status{display:flex; gap:8px; align-items:center; font-weight:700; margin:-6px 0 14px}
+.status::before{content:""; width:10px; height:10px; border-radius:50%; background:var(--ink-soft); flex:none}
+.status.open::before{background:var(--good)}
+.status.closed::before{background:var(--bad)}
+.status-note{color:var(--ink-soft); margin:-6px 0 16px; max-width:60ch}
+.status-note:empty{display:none}
+.error{color:var(--bad); font-weight:700; margin-top:12px}
+.error:empty{display:none}
+
+/* Patient details */
+dl.facts{display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:14px 20px; margin:6px 0 0}
+dl.facts div{border-top:1.5px solid var(--grid); padding-top:8px}
+dt{font-size:.85rem; color:var(--ink-soft)}
+dd{margin:2px 0 0; font-weight:700; font-size:1.15rem; overflow-wrap:anywhere}
+
+/* Prescriptions */
+.diets{display:grid; gap:12px; margin-top:4px}
+.diet{border:1.5px solid var(--grid); border-radius:4px; padding:14px 16px; display:grid; gap:10px}
+.diet.chosen{border-color:var(--ink); box-shadow: 4px 4px 0 var(--ink)}
+.diet.off{opacity:.55}
+.diet-head{display:flex; gap:12px; align-items:baseline; cursor:pointer}
+.diet-head input{accent-color:var(--ink); transform:translateY(2px)}
+.diet-name{font-family:var(--display); font-weight:600; font-size:1.2rem}
+.diet-tag{color:var(--ink-soft)}
+.diet-body{display:grid; grid-template-columns:1fr; gap:10px}
+.diet-pic{width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:4px; border:1.5px solid var(--grid)}
+@media (min-width:640px){ .diet-body{grid-template-columns:150px 1fr; align-items:start} .diet-pic{width:150px; height:100px} }
+.diet-tech{font-size:.82rem; font-weight:700; color:var(--ink); background:var(--grid); border-radius:999px; padding:1px 10px; margin-left:6px; white-space:nowrap}
+.chunky{display:flex; align-items:center; gap:14px; margin-top:18px}
+.chunky img{height:150px; width:auto; border-radius:4px; border:1.5px solid var(--ink)}
+.chunky span{font-family:var(--display); font-weight:800; color:var(--needle); font-size:1.1rem}
+.card-pic{width:120px; height:80px; object-fit:cover; border-radius:4px; border:1.5px solid var(--grid); flex:none}
+.card-head{display:flex; gap:16px; align-items:center}
+.plans{display:flex; flex-wrap:wrap; gap:8px}
+.plans label{font-weight:400; margin:0; border:1px solid var(--ink-soft); border-radius:999px; padding:5px 12px; cursor:pointer}
+.plans input{position:absolute; opacity:0; pointer-events:none}
+.plans input:checked + span{font-weight:700}
+.plans label:has(input:checked){background:var(--ink); color:var(--sheet); border-color:var(--ink)}
+.plans label:has(input:focus-visible){outline:3px solid var(--focus); outline-offset:2px}
+.plans label:has(input:disabled){opacity:.45; cursor:not-allowed}
+.slider{display:grid; grid-template-columns: auto 1fr auto; gap:10px; align-items:center; font-size:.95rem}
+.slider input{accent-color:var(--needle)}
+.slider label{margin:0; font-weight:400}
+.note{font-size:.93rem; color:var(--ink-soft)}
+.note.warn{color:var(--warn)}
+details summary{cursor:pointer; color:var(--ink-soft); margin-top:14px}
+.actions{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:18px}
+
+/* Treatment progress: a real sequence, so it's numbered */
+ol.steps{list-style:none; padding:0; margin:0; display:grid; gap:2px; counter-reset:s}
+ol.steps li{counter-increment:s; display:grid; grid-template-columns: 34px 1fr; gap:10px; padding:10px 0; border-bottom:1px solid var(--grid); color:var(--ink-soft)}
+ol.steps li::before{content:counter(s); width:28px; height:28px; border-radius:50%; border:1.5px solid currentColor; display:grid; place-items:center; font-weight:700; font-size:.9rem}
+ol.steps li.now{color:var(--ink)}
+ol.steps li.now::before{background:var(--needle); border-color:var(--needle); color:#fff}
+ol.steps li.done{color:var(--ink)}
+ol.steps li.done::before{content:"✓"; background:var(--ink); border-color:var(--ink); color:var(--sheet)}
+.step-title{font-weight:700}
+.step-msg{font-size:.95rem}
+.bar{height:8px; border:1px solid var(--ink); border-radius:2px; margin-top:8px; overflow:hidden}
+.bar > i{display:block; height:100%; width:0; background:var(--ink); transition:width .4s}
+.mini-chart{margin-top:8px}
+
+/* Weigh-in card */
+.verdict{display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:4px; margin:6px 0 18px; border:1.5px solid}
+.verdict.healthy{border-color:var(--good); color:var(--good)}
+.verdict.mild{border-color:var(--warn); color:var(--warn)}
+.verdict.crash{border-color:var(--bad); color:var(--bad)}
+.verdict b{font-family:var(--display); font-size:1.25rem; display:block}
+.verdict p{color:var(--ink)}
+.compare{width:100%; border-collapse:collapse; margin-top:6px}
+.compare th, .compare td{padding:9px 6px; text-align:right; border-bottom:1px solid var(--grid); vertical-align:top}
+.compare th:first-child, .compare td:first-child{text-align:left; font-weight:400; color:var(--ink-soft)}
+.compare thead th{font-weight:700; color:var(--ink); border-bottom:1.5px solid var(--ink)}
+.compare .delta{font-weight:700}
+.table-wrap{overflow-x:auto}
+@media (max-width:520px){ .compare{font-size:.86rem} .compare th, .compare td{padding:8px 3px} .sheet{padding:18px 14px} }
+.better{color:var(--good)} .worse{color:var(--bad)}
+.section{margin-top:26px}
+.section > h3{margin-bottom:8px}
+.answers{display:grid; gap:14px}
+.answer{border-top:1.5px solid var(--grid); padding-top:10px}
+.answer .q{font-weight:700; margin-bottom:8px}
+.pair{display:grid; grid-template-columns:1fr; gap:10px}
+@media (min-width:640px){ .pair{grid-template-columns:1fr 1fr} }
+.pair div{font-size:.95rem; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--paper); padding:10px 12px; border-radius:4px}
+.pair small{display:block; color:var(--ink-soft); margin-bottom:4px; font-size:.82rem}
+.explain{font-size:.98rem; max-width:64ch}
+.explain + .explain{margin-top:8px}
+.share{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:22px}
+.chart svg{display:block; width:100%; height:auto}
+.chart .axis{stroke:var(--ink-soft); stroke-width:1}
+.chart .line{fill:none; stroke:var(--needle); stroke-width:2.5}
+.chart .bar-ok{fill:var(--ink)} .chart .bar-cut{fill:var(--needle)}
+.chart text{fill:var(--ink-soft); font:400 11px var(--body)}
+
+/* Recent visits */
+.recent{list-style:none; padding:0; margin:0}
+.recent li{display:grid; grid-template-columns: 1fr auto; gap:4px 12px; padding:10px 0; border-bottom:1px solid var(--grid)}
+.recent a{font-weight:700; text-decoration:none; overflow-wrap:anywhere}
+.recent a:hover{text-decoration:underline}
+.recent .lost{font-weight:700; text-align:right}
+.recent .sub{grid-column:1 / -1; font-size:.9rem; color:var(--ink-soft)}
+footer{margin-top:40px; color:var(--ink-soft); font-size:.92rem}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <h1>Model Diet Clinic</h1>
+      <p class="lede">Bring a language model from Hugging Face and put it on a diet: portion control, trim the hedge, or train an apprentice. Then see how much weight it lost, and whether it's still itself.</p>
+      <div class="chunky" aria-hidden="true"><img src="img/chunky-before.webp" alt=""><span>DIET →</span><img src="img/chunky-after.webp" alt=""></div>
+    </div>
+    <div class="scale" aria-hidden="true">
+      <svg id="dial" viewBox="0 0 320 244"></svg>
+    </div>
+  </header>
+
+  <!-- 1. Check in -->
+  <section class="sheet" id="checkin">
+    <h2>Check in your model</h2>
+    <p class="status" id="status" role="status">Checking whether the clinic is open…</p>
+    <p class="status-note" id="status-note"></p>
+    <form id="checkin-form" autocomplete="off">
+      <label for="link">Model link</label>
+      <div class="row">
+        <input type="text" id="link" name="link" placeholder="huggingface.co/Qwen/Qwen2.5-0.5B-Instruct" spellcheck="false" required>
+        <button type="submit" id="checkin-btn">Check in</button>
+      </div>
+      <p class="examples" id="examples" hidden></p>
+      <p class="hint" id="limits-hint"></p>
+      <p class="error" id="checkin-error" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- 2. Patient file + prescription -->
+  <section class="sheet" id="patient" hidden>
+    <h2 id="patient-name"></h2>
+    <dl class="facts" id="patient-facts"></dl>
+
+    <h3 style="margin-top:26px">Choose a diet</h3>
+    <form id="diet-form">
+      <div class="diets" id="diets"></div>
+      <details>
+        <summary>Ask your own question too (optional)</summary>
+        <label for="prompt" style="margin-top:10px">Your question</label>
+        <textarea id="prompt" maxlength="500" placeholder="Both versions of the model will answer it, side by side."></textarea>
+      </details>
+      <div class="actions">
+        <button type="submit" id="start-btn">Start the diet</button>
+        <span class="hint" id="start-hint"></span>
+      </div>
+      <p class="error" id="diet-error" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- 3. Treatment -->
+  <section class="sheet" id="treatment" hidden aria-live="polite">
+    <h2>In treatment</h2>
+    <ol class="steps" id="steps">
+      <li data-stage="check_in"><div><div class="step-title">Check-in</div><div class="step-msg">Bringing the model into the clinic.</div><div class="bar" hidden><i></i></div></div></li>
+      <li data-stage="weigh_in"><div><div class="step-title">Weigh-in</div><div class="step-msg">Measuring the model before the diet.</div></div></li>
+      <li data-stage="diet"><div><div class="step-title">Diet</div><div class="step-msg">Applying the diet.</div><div class="mini-chart chart" hidden></div></div></li>
+      <li data-stage="check_up"><div><div class="step-title">Check-up</div><div class="step-msg">Weighing again and comparing both versions.</div></div></li>
+    </ol>
+    <p class="error" id="treat-error" role="alert"></p>
+  </section>
+
+  <!-- 4. Weigh-in card -->
+  <section class="sheet" id="card" hidden></section>
+
+  <section class="sheet" id="recent-box" hidden>
+    <h2>Recent visits</h2>
+    <ul class="recent" id="recent"></ul>
+  </section>
+
+  <footer>
+    <p>Built by Hannah Igboke for the talk “How to make a 14GB model lose weight”, Python Nigeria, Lagos, October 2026. Models are measured on <span id="hw">a GPU</span>; numbers vary by hardware. Want bigger models or longer training? Clone the code and run your own clinic.</p>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Pictures live next to the page, whether it's served by the clinic or by GitHub Pages.
+const assetUrl = p => new URL(p, document.baseURI).href;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let CONFIG = null, PATIENT = null, LINK = "";
+let API = "";          // where the clinic's server is; "" means this same site
+let OPEN = false;
+let GIST_RECENT = [];
+let recheckTimer = null;
+const CLINIC = Object.assign({ gist: "", gistApi: "https://api.github.com", gistRaw: "https://gist.githubusercontent.com" }, window.CLINIC || {});
+const GIST_ID = (CLINIC.gist || "").split("/").pop().trim();
+let GIST_OWNER = (CLINIC.gist || "").includes("/") ? CLINIC.gist.split("/")[0].trim() : "";
+
+// [Hub id, label, size in GiB]. Only the ones under the clinic's size cap are shown.
+const EXAMPLES = [
+  ["Qwen/Qwen2.5-0.5B-Instruct", "Qwen2.5 0.5B", 0.92],
+  ["HuggingFaceTB/SmolLM2-1.7B-Instruct", "SmolLM2 1.7B", 3.19],
+  ["Qwen/Qwen2.5-3B-Instruct", "Qwen2.5 3B", 5.75],
+  ["Qwen/Qwen2.5-7B-Instruct", "Qwen2.5 7B", 14.19],
+];
+
+/* ---------- formatting ---------- */
+function size(bytes){
+  if (bytes == null) return "–";
+  const gb = bytes / 1024**3;
+  if (gb >= 1) return gb.toFixed(gb >= 10 ? 1 : 2) + " GB";
+  const mb = bytes / 1024**2;
+  if (mb >= 1) return mb.toFixed(mb >= 100 ? 0 : 1) + " MB";
+  return (bytes / 1024).toFixed(1) + " KB";
+}
+function count(n){
+  if (n == null) return "–";
+  if (n >= 1e9) return (n/1e9).toFixed(2) + " billion";
+  if (n >= 1e6) return (n/1e6).toFixed(1) + " million";
+  if (n >= 1e3) return (n/1e3).toFixed(1) + " thousand";
+  return String(n);
+}
+const pct = (x, d = 0) => (x * 100).toFixed(d) + "%";
+const fix = (x, d = 2) => x == null || !isFinite(x) ? "–" : Number(x).toFixed(d);
+
+/* ---------- the scale ---------- */
+const DIAL = { cx:160, cy:168, r:132, start:-180, end:0 };   // a half-moon dial, like a bathroom scale
+function niceMax(gb){
+  const steps = [0.001,0.005,0.01,0.05,0.1,0.25,0.5,1,2,4,8,12,16,20,40,80];
+  return steps.find(s => s >= gb * 1.05) || Math.ceil(gb);
+}
+function angleFor(v, max){ return DIAL.start + (DIAL.end - DIAL.start) * Math.min(Math.max(v / max, 0), 1); }
+function polar(deg, r){ const a = deg * Math.PI / 180; return [DIAL.cx + r * Math.cos(a), DIAL.cy + r * Math.sin(a)]; }
+function tickLabel(v, max){ return max >= 4 ? String(Math.round(v)) : String(+v.toPrecision(2)); }
+
+function drawDial(max, value, ghost, readout, caption){
+  const svg = $("#dial"), R = DIAL.r + 16;
+  let out = `<path class="face" d="M ${DIAL.cx - R} ${DIAL.cy} A ${R} ${R} 0 0 1 ${DIAL.cx + R} ${DIAL.cy} Z"/>`;
+  const majors = 4, minorPer = 5;
+  for (let i = 0; i <= majors * minorPer; i++){
+    const v = max * i / (majors * minorPer), a = angleFor(v, max), major = i % minorPer === 0;
+    const [x1,y1] = polar(a, DIAL.r - (major ? 14 : 7)), [x2,y2] = polar(a, DIAL.r);
+    out += `<line class="tick ${major ? "" : "minor"}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    if (major){
+      const [lx,ly] = polar(a, DIAL.r - 30);
+      const end = i === 0 || i === majors * minorPer;
+      out += `<text class="lbl" x="${lx.toFixed(1)}" y="${(ly + (end ? -6 : 5)).toFixed(1)}" text-anchor="middle">${tickLabel(v, max)}</text>`;
+    }
+  }
+  out += `<text class="unit" x="${DIAL.cx + R}" y="${DIAL.cy + 18}" text-anchor="end">scale in GB</text>`;
+  if (ghost != null){
+    const [gx,gy] = polar(angleFor(ghost, max), DIAL.r - 18);
+    out += `<line class="ghost" x1="${DIAL.cx}" y1="${DIAL.cy}" x2="${gx.toFixed(1)}" y2="${gy.toFixed(1)}"/>`;
+  }
+  const [nx,ny] = polar(angleFor(value, max), DIAL.r - 8);
+  out += `<line class="needle" x1="${DIAL.cx}" y1="${DIAL.cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"/>`;
+  out += `<circle class="hub" cx="${DIAL.cx}" cy="${DIAL.cy}" r="9"/>`;
+  out += `<text class="readout" x="${DIAL.cx}" y="${DIAL.cy + 44}" text-anchor="middle">${esc(readout)}</text>`;
+  out += `<text class="caption" x="${DIAL.cx}" y="${DIAL.cy + 66}" text-anchor="middle">${esc(caption)}</text>`;
+  svg.innerHTML = out;
+}
+
+function swingDial(beforeGb, afterGb, caption){
+  const max = niceMax(beforeGb);
+  const show = gb => size(gb * 1024**3);
+  if (reduceMotion){ drawDial(max, afterGb, beforeGb, show(afterGb), caption); return; }
+  const t0 = performance.now(), dur = 1800;
+  const ease = t => t >= 1 ? 1 : 1 - Math.exp(-5 * t) * Math.cos(9 * t);   // overshoots a little, then settles like a real scale
+  drawDial(max, beforeGb, null, show(beforeGb), caption);
+  setTimeout(() => {
+    const frame = now => {
+      const t = Math.min((now - t0 - 500) / dur, 1);
+      const k = t <= 0 ? 0 : ease(t);
+      const v = beforeGb + (afterGb - beforeGb) * k;
+      drawDial(max, v, beforeGb, show(v), caption);
+      if (t < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }, 0);
+}
+
+/* ---------- API ---------- */
+async function api(path, body){
+  let r;
+  try {
+    r = await fetch(API + path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  } catch {
+    scheduleRecheck(5000);
+    throw new Error("Couldn't reach the clinic. It may have just closed; this page will notice within a minute.");
+  }
+  let data = {};
+  try { data = await r.json(); } catch {}
+  if (!r.ok || data.ok === false) throw new Error(data.message || data.detail?.[0]?.msg || `The clinic returned an error (${r.status}).`);
+  return data;
+}
+
+/* ---------- check-in ---------- */
+function renderExamples(maxGb){
+  const fits = EXAMPLES.filter(([, , gb]) => gb <= maxGb);
+  const box = $("#examples");
+  box.hidden = !fits.length;
+  box.innerHTML = "Try one: " + fits.map(([id, label, gb]) =>
+    `<button type="button" data-example="${esc(id)}">${esc(label)} (${gb < 1 ? Math.round(gb * 1024) + " MB" : gb.toFixed(1) + " GB"})</button>`).join("");
+  $$("[data-example]", box).forEach(b => b.addEventListener("click", () => { $("#link").value = b.dataset.example; $("#checkin-form").requestSubmit(); }));
+}
+
+$("#checkin-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!OPEN) return;
+  const btn = $("#checkin-btn");
+  $("#checkin-error").textContent = "";
+  btn.disabled = true; btn.textContent = "Checking…";
+  try {
+    LINK = $("#link").value.trim();
+    const { patient } = await api("/api/inspect", { link: LINK });
+    PATIENT = patient;
+    renderPatient();
+  } catch (err) {
+    $("#checkin-error").textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Check in";
+  }
+});
+
+function renderPatient(){
+  const p = PATIENT;
+  $("#patient-name").textContent = p.is_local ? p.repo_id.split("/").pop() : p.repo_id;
+  const facts = [
+    ["Weight on disk", size(p.size_bytes)],
+    ["Parameters", count(p.params)],
+    ["Stored as", p.dtype || "–"],
+    ["Layers", p.num_layers ?? "–"],
+    ["Family", p.model_type || "–"],
+  ];
+  $("#patient-facts").innerHTML = facts.map(([k,v]) => `<div><dt>${esc(k)}</dt><dd class="num">${esc(v)}</dd></div>`).join("");
+  drawDial(niceMax(p.size_gb), p.size_gb, null, size(p.size_bytes), "on the scale");
+  renderDiets();
+  $("#patient").hidden = false;
+  $("#patient").scrollIntoView({behavior: reduceMotion ? "auto" : "smooth", block:"start"});
+}
+
+const PLAN_NOTES = {
+  bf16: "Rounds each number to 16 bits. Only helps if the model is stored in 32-bit.",
+  int8: "Each number squeezed into 8 bits. Usually almost no quality loss.",
+  nf4: "Each number squeezed into 4 bits. The sweet spot most people use.",
+  layers: "Measures how much each layer changes what passes through it, then cuts the dead branches: the layers that barely do anything.",
+  student: "Builds an apprentice with fewer layers, then trains it to copy the master’s answers. A short training session, not a full apprenticeship.",
+};
+
+function renderDiets(){
+  const allowed = PATIENT.allowed_diets, dtype = (PATIENT.dtype || "").toUpperCase();
+  const halfAlready = ["BF16","F16","FP16","BFLOAT16","FLOAT16"].includes(dtype);
+  const box = $("#diets");
+  box.innerHTML = "";
+  let first = true;
+  for (const [key, d] of Object.entries(CONFIG.diets)){
+    const ok = allowed[key]?.ok;
+    const el = document.createElement("div");
+    el.className = "diet" + (ok ? "" : " off");
+    el.dataset.diet = key;
+    const plans = Object.entries(d.plans).map(([pk, label], i) => {
+      const dis = pk === "bf16" && halfAlready;
+      return `<label><input type="radio" name="plan-${key}" value="${pk}" ${dis ? "disabled" : ""}><span>${esc(label)}</span></label>`;
+    }).join("");
+    el.innerHTML = `
+      <label class="diet-head"><input type="radio" name="diet" value="${key}" ${ok ? "" : "disabled"}>
+        <span><span class="diet-name">${esc(d.name)}</span><span class="diet-tech">${esc(d.technical || "")}</span> <span class="diet-tag">${esc(d.tagline)}</span></span></label>
+      <div class="diet-body">
+        ${d.picture ? `<img class="diet-pic" src="${esc(assetUrl(d.picture))}" alt="">` : "<span></span>"}
+        <div style="display:grid; gap:10px">
+          <p class="note">${esc(d.blurb)}</p>
+          <div class="plans" role="radiogroup" aria-label="${esc(d.name)} plan">${plans}</div>
+          <p class="note plan-note"></p>
+          <div class="opts"></div>
+        </div>
+      </div>
+      ${!ok ? `<p class="note warn">${esc(allowed[key]?.reason || "Not available for this model.")}</p>` : ""}
+      ${allowed[key]?.note ? `<p class="note warn">${esc(allowed[key].note)}</p>` : ""}`;
+    box.appendChild(el);
+    const planInputs = $$(`input[name="plan-${key}"]`, el);
+    const firstEnabled = planInputs.find(i => !i.disabled && !(key === "prune" && i.value === "layers" && PATIENT.num_layers < 4));
+    if (key === "quantize"){ const n = planInputs.find(i => i.value === "nf4"); n.checked = true; } else if (firstEnabled) firstEnabled.checked = true;
+    if (key === "prune" && PATIENT.num_layers != null && PATIENT.num_layers < 4){ planInputs.find(i => i.value === "layers").disabled = true; }
+    if (ok && first){ $("input[name=diet]", el).checked = true; first = false; }
+    planInputs.forEach(i => i.addEventListener("change", () => { selectDiet(key); updateOptions(el, key); }));
+    $("input[name=diet]", el).addEventListener("change", () => selectDiet(key));
+    updateOptions(el, key);
+  }
+  selectDiet($("input[name=diet]:checked")?.value);
+}
+
+function slider(id, label, min, max, step, value, fmt){
+  return `<div class="slider"><label for="${id}">${esc(label)}</label>
+    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" data-fmt="${fmt}">
+    <output for="${id}" class="num">${fmt === "pct" ? pct(value) : value}</output></div>`;
+}
+
+function updateOptions(el, key){
+  const plan = $(`input[name="plan-${key}"]:checked`, el)?.value;
+  $(".plan-note", el).textContent = PLAN_NOTES[plan] || "";
+  const opts = $(".opts", el);
+  if (plan === "layers") opts.innerHTML = slider(`o-${key}-fraction`, "Layers to cut", 0.05, 0.5, 0.05, 0.25, "pct");
+  else if (plan === "student") opts.innerHTML =
+      slider(`o-${key}-keep_fraction`, "Layers the apprentice keeps", 0.3, 0.75, 0.05, 0.5, "pct") +
+      slider(`o-${key}-steps`, "Training steps", 20, 300, 10, 80, "n");
+  else opts.innerHTML = "";
+  $$("input[type=range]", opts).forEach(r => r.addEventListener("input", () => {
+    r.nextElementSibling.textContent = r.dataset.fmt === "pct" ? pct(+r.value) : r.value;
+  }));
+}
+
+function selectDiet(key){
+  $$(".diet").forEach(d => d.classList.toggle("chosen", d.dataset.diet === key));
+  const radio = $(`.diet[data-diet="${key}"] input[name=diet]`);
+  if (radio && !radio.checked) radio.checked = true;
+  const big = PATIENT.size_gb >= CONFIG.big_model_gb;
+  $("#start-hint").textContent = big
+    ? `Big model: this visit takes a few minutes.${CONFIG.big_runs_per_day ? ` Each visitor gets ${CONFIG.big_runs_per_day} big visits a day.` : ""}`
+    : "Usually takes under a minute.";
+}
+
+/* ---------- treatment ---------- */
+$("#diet-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("#diet-error").textContent = "";
+  const diet = $("input[name=diet]:checked")?.value;
+  if (!diet){ $("#diet-error").textContent = "Choose a diet first."; return; }
+  const el = $(`.diet[data-diet="${diet}"]`);
+  const plan = $(`input[name="plan-${diet}"]:checked`, el)?.value;
+  if (!plan){ $("#diet-error").textContent = "Choose a plan for this diet."; return; }
+  const options = {};
+  $$("input[type=range]", el).forEach(r => { options[r.id.split("-").pop()] = +r.value; });
+  await runTreatment({ link: LINK, diet, plan, options, prompt: $("#prompt").value || null });
+});
+
+const STAGES = ["check_in","weigh_in","diet","check_up"];
+function setStage(stage, message){
+  const idx = STAGES.indexOf(stage === "lobby" ? "check_in" : stage);
+  if (idx < 0) return;
+  $$("#steps li").forEach((li, i) => {
+    li.classList.toggle("done", i < idx);
+    li.classList.toggle("now", i === idx);
+    if (i === idx && message) $(".step-msg", li).textContent = message;
+  });
+}
+
+function lossChart(curve, w = 680, h = 120){
+  if (!curve.length) return "";
+  const max = Math.max(...curve), min = Math.min(...curve), span = (max - min) || 1, n = Math.max(curve.length - 1, 1);
+  const pts = curve.map((v, i) => `${(56 + (w - 66) * i / n).toFixed(1)},${(10 + (h - 30) * (1 - (v - min) / span)).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Apprentice training loss over training steps">
+    <line class="axis" x1="56" y1="${h-20}" x2="${w-10}" y2="${h-20}"/><line class="axis" x1="56" y1="10" x2="56" y2="${h-20}"/>
+    <text x="52" y="16" text-anchor="end">${(+max.toPrecision(2))}</text><text x="52" y="${h-22}" text-anchor="end">${(+min.toPrecision(2))}</text>
+    <text x="${w-10}" y="${h-6}" text-anchor="end">step ${curve.length}</text>
+    <polyline class="line" points="${pts}"/></svg>`;
+}
+
+async function runTreatment(body){
+  const btn = $("#start-btn");
+  btn.disabled = true; btn.textContent = "In treatment…";
+  $("#card").hidden = true;
+  $("#treat-error").textContent = "";
+  $$("#steps li").forEach(li => li.classList.remove("done","now"));
+  $(".bar", $("#steps")).hidden = true;
+  const mini = $(".mini-chart"); mini.hidden = true; mini.innerHTML = "";
+  $("#treatment").hidden = false;
+  $("#treatment").scrollIntoView({behavior: reduceMotion ? "auto" : "smooth", block:"start"});
+  setStage("check_in", "Checking the model in…");
+  const curve = [];
+  let gotResult = false;
+
+  try {
+    const r = await fetch(API + "/api/diet", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if (!r.ok){
+      let d = {}; try { d = await r.json(); } catch {}
+      throw new Error(d.message || `The clinic couldn't start this visit (${r.status}).`);
+    }
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    while (true){
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0){
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const line = chunk.split("\n").find(l => l.startsWith("data: "));
+        if (!line) continue;
+        const ev = JSON.parse(line.slice(6));
+        if (ev.type === "progress"){
+          setStage(ev.stage, ev.message);
+          if (ev.download && ev.download.total){
+            const bar = $(".bar", $("#steps")); bar.hidden = false;
+            $("i", bar).style.width = pct(Math.min(ev.download.done / ev.download.total, 1));
+            if (!ev.download.cached) $('#steps li[data-stage="check_in"] .step-msg').textContent =
+              `Downloading: ${size(ev.download.done)} of ${size(ev.download.total)}`;
+          }
+        } else if (ev.type === "train"){
+          setStage("diet", `Training the apprentice: step ${ev.step} of ${ev.steps}, loss ${fix(ev.loss, 3)}`);
+          curve.push(ev.loss); mini.hidden = false; mini.innerHTML = lossChart(curve);
+        } else if (ev.type === "result"){
+          gotResult = true;
+          $$("#steps li").forEach(li => { li.classList.remove("now"); li.classList.add("done"); });
+          renderCard(ev.result, true);
+          history.pushState({}, "", cardUrl(ev.result.id));
+          loadRecent();
+        } else if (ev.type === "error"){
+          throw new Error(ev.message);
+        }
+      }
+    }
+    if (!gotResult) throw new Error("The connection closed before the visit finished. Try again.");
+  } catch (err) {
+    $("#treat-error").textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Start the diet";
+  }
+}
+
+/* ---------- weigh-in card ---------- */
+function deltaCell(before, after, lowerIsBetter, fmt){
+  if (before == null || after == null) return `<td>–</td>`;
+  const better = lowerIsBetter ? after < before : after > before;
+  const ratio = before ? after / before : null;
+  if (Math.abs(after - before) < 1e-9) return `<td class="delta">no change</td>`;
+  if (ratio != null && Math.abs(ratio - 1) < 0.005) return `<td class="delta">about the same</td>`;
+  const txt = ratio == null ? "" : (ratio >= 1 ? "+" : "−") + Math.abs((ratio - 1) * 100).toFixed(0) + "%";
+  return `<td class="delta ${better ? "better" : "worse"}">${txt}</td>`;
+}
+
+function renderCard(r, animate){
+  const b = r.before, a = r.after, h = r.health, x = r.extras || {};
+  const name = r.patient.is_local ? r.patient.repo_id.split("/").pop() : r.patient.repo_id;
+  const lostPct = r.change.percent_lost;
+  const headline = Math.abs(r.change.bytes_lost) < 1024
+    ? `${name} didn't lose any weight.`
+    : `${name} lost ${size(Math.abs(r.change.bytes_lost))} (${lostPct.toFixed(0)}%).`;
+
+  const rows = [
+    ["Weight in memory", size(b.bytes), size(a.bytes), deltaCell(b.bytes, a.bytes, true)],
+    ["Parameters", count(b.params), count(a.params), deltaCell(b.params, a.params, true)],
+    ["Bytes per parameter", fix(b.bytes_per_param), fix(a.bytes_per_param), deltaCell(b.bytes_per_param, a.bytes_per_param, true)],
+    ["Perplexity (lower is better)", fix(h.perplexity_before), fix(h.perplexity_after), deltaCell(h.perplexity_before, h.perplexity_after, true)],
+    ["Speed (tokens per second)", fix(b.tokens_per_sec, 1), fix(a.tokens_per_sec, 1), deltaCell(b.tokens_per_sec, a.tokens_per_sec, false)],
+  ];
+
+  let special = "";
+  if (x.plan === "layers" || x.plan === "student"){
+    const scores = x.block_influence;
+    let bars = "";
+    if (scores && scores.length){
+      const w = 680, hgt = 130, n = scores.length, bw = (w - 40) / n, max = Math.max(...scores) || 1;
+      bars = `<div class="chart"><svg viewBox="0 0 ${w} ${hgt}" role="img" aria-label="How much each layer changes its input. Red layers were removed.">` +
+        scores.map((s, i) => { const bh = (hgt - 30) * s / max; const cut = x.dropped_layers.includes(i);
+          return `<rect class="${cut ? "bar-cut" : "bar-ok"}" x="${30 + i * bw + 1}" y="${hgt - 20 - bh}" width="${Math.max(bw - 2, 1)}" height="${bh}"><title>Layer ${i}: ${fix(s, 3)}${cut ? " (removed)" : ""}</title></rect>`; }).join("") +
+        `<line class="axis" x1="30" y1="${hgt-20}" x2="${w-10}" y2="${hgt-20}"/><text x="30" y="${hgt-6}">first layer</text><text x="${w-10}" y="${hgt-6}" text-anchor="end">last layer</text></svg></div>`;
+    }
+    special = `<div class="section"><h3>${x.plan === "student" ? "How the apprentice was built" : "Which dead branches were cut"}</h3>
+      <p class="explain">Each bar shows how much a layer changes what flows through it. Short bars are the dead branches, layers doing little work. The red ones were cut (${x.layers_before} layers down to ${x.layers_after}).</p>${bars}</div>`;
+    if (x.plan === "student"){
+      special += `<div class="section"><h3>The training session</h3>
+        <p class="explain">Before any training, the apprentice agreed with the master on <b class="num">${pct(x.before_gym.agreement)}</b> of next words. After ${x.steps} training steps copying the master, it agrees on <b class="num">${pct(h.agreement)}</b>.</p>
+        <div class="chart">${lossChart(x.loss_curve)}</div>
+        <p class="explain hint">Real distillation trains for days on billions of words. This was a few seconds on a few pages, so treat it as a taste of the method.</p></div>`;
+    }
+  } else if (r.diet.key === "quantize"){
+    special = `<div class="section"><h3>What changed</h3><p class="explain">Every weight is still there, stored with fewer bits (${esc(x.backend === "bitsandbytes" ? "using bitsandbytes" : x.backend === "reference" ? "using the clinic's reference quantizer" : "using PyTorch")}). The output layer was left at full precision because it's the most sensitive to rounding.${x.note ? " " + esc(x.note) : ""}</p>${r.change.speedup && r.change.speedup < 0.95 ? `<p class="explain">Smaller isn't always faster: the computer has to unpack the numbers before using them, so this version generates text more slowly.</p>` : ""}</div>`;
+  }
+
+  const answers = r.samples.map(s => `<div class="answer"><p class="q">${esc(s.prompt)}</p><div class="pair">
+      <div><small>Before, ${fix(s.before_tps,1)} tokens/s</small>${esc(s.before) || "<i>(no answer)</i>"}</div>
+      <div><small>After, ${fix(s.after_tps,1)} tokens/s</small>${esc(s.after) || "<i>(no answer)</i>"}</div></div></div>`).join("");
+
+  $("#card").innerHTML = `
+    <div class="card-head">${r.diet.picture ? `<img class="card-pic" src="${esc(assetUrl(r.diet.picture))}" alt="">` : ""}<div>
+    <h2>${esc(headline)}</h2>
+    <p class="hint" style="margin-top:6px">${esc(r.diet.name)}${r.diet.technical ? ` (${esc(r.diet.technical)})` : ""}: ${esc(r.diet.label)}. Measured on ${esc(r.hardware)}.</p></div></div>
+    <div class="verdict ${esc(h.level)}" style="margin-top:16px"><div><b>${{healthy:"Healthy", mild:"Mild side effects", crash:"Crash diet"}[h.level] || ""}</b>
+      <p>${esc(h.text)} Both versions picked the same next word ${pct(h.agreement)} of the time.</p></div></div>
+    <div class="table-wrap"><table class="compare num"><thead><tr><th>Measurement</th><th>Before</th><th>After</th><th>Change</th></tr></thead>
+      <tbody>${rows.map(([k, bv, av, d]) => `<tr><td>${esc(k)}</td><td>${esc(bv)}</td><td>${esc(av)}</td>${d}</tr>`).join("")}</tbody></table></div>
+    ${special}
+    <div class="section"><h3>Same questions, before and after</h3><div class="answers">${answers}</div></div>
+    <div class="share">
+      <button type="button" class="quiet" id="copy-link">Copy link to this card</button>
+      <button type="button" class="quiet" id="again">Try another diet</button>
+      <span class="hint" id="copied" aria-live="polite"></span>
+    </div>`;
+  $("#card").hidden = false;
+  $("#copy-link").onclick = async () => {
+    const url = location.origin + cardUrl(r.id);
+    try { await navigator.clipboard.writeText(url); $("#copied").textContent = "Link copied."; }
+    catch { $("#copied").textContent = url; }
+  };
+  $("#again").onclick = () => {
+    if (PATIENT) { $("#patient").hidden = false; $("#patient").scrollIntoView({behavior: reduceMotion ? "auto" : "smooth"}); }
+    else { $("#link").value = r.patient.link; $("#checkin").scrollIntoView({behavior: reduceMotion ? "auto" : "smooth"}); }
+  };
+  if ($("#hw")) $("#hw").textContent = r.hardware;
+  swingDial(b.gb, a.gb, `was ${size(b.bytes)}`);
+  $("#card").scrollIntoView({behavior: reduceMotion || !animate ? "auto" : "smooth", block:"start"});
+}
+
+/* ---------- recent visits ---------- */
+async function loadRecent(){
+  try {
+    const recent = OPEN ? (await api("/api/recent")).recent : GIST_RECENT;
+    if (!recent || !recent.length){ $("#recent-box").hidden = true; return; }
+    $("#recent").innerHTML = recent.slice(0, 10).map(v => `<li>
+      <a href="${esc(cardUrl(v.id))}" data-card="${esc(v.id)}">${esc(v.repo_id.split("/").slice(-2).join("/"))}</a>
+      <span class="lost num">${v.percent_lost >= 0.5 ? "−" + v.percent_lost.toFixed(0) + "%" : "no loss"}</span>
+      <span class="sub">${esc(v.diet)}: ${esc(v.plan)}. ${size(v.before_gb * 1024**3)} to ${size(v.after_gb * 1024**3)}, ${esc({healthy:"healthy", mild:"mild side effects", crash:"crash diet"}[v.verdict] || "")}.</span></li>`).join("");
+    $$("#recent [data-card]").forEach(a => a.addEventListener("click", ev => { ev.preventDefault(); openCard(a.dataset.card, true); }));
+    $("#recent-box").hidden = false;
+  } catch { /* the list is a nice-to-have */ }
+}
+
+async function openCard(id, push){
+  if (!/^[\w-]{1,40}$/.test(id)) return;
+  let result = null;
+  if (OPEN){ try { result = (await api(`/api/result/${encodeURIComponent(id)}`)).result; } catch {} }
+  if (!result) result = await cardFromGist(id);
+  if (!result){ $("#checkin-error").textContent = "Couldn't find that weigh-in card."; return; }
+  if (push) history.pushState({}, "", cardUrl(id));
+  $("#treatment").hidden = true;
+  renderCard(result, true);
+}
+
+/* ---------- where is the clinic today? ---------- */
+function cardUrl(id){
+  const path = location.pathname.startsWith("/r/") ? "/" : location.pathname;
+  return `${path}?card=${encodeURIComponent(id)}`;
+}
+function cardFromLocation(){
+  const q = new URLSearchParams(location.search).get("card");
+  const m = location.pathname.match(/^\/r\/([\w-]+)/);
+  return q || (m && m[1]) || null;
+}
+
+async function probe(base){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(base + "/api/config", { signal: ctl.signal, cache: "no-store" });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.diets ? d : null;
+  } catch { return null; } finally { clearTimeout(t); }
+}
+
+async function rawGistFile(name){
+  if (!GIST_OWNER || !GIST_ID) return null;
+  try {
+    const r = await fetch(`${CLINIC.gistRaw}/${GIST_OWNER}/${GIST_ID}/raw/${name}?t=${Date.now()}`, { cache: "no-store" });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+// The gist API gives fresh data but allows 60 reads an hour per network, which a
+// meetup on shared wifi could use up; the raw files have no such limit.
+async function readGist(){
+  if (!GIST_ID) return null;
+  try {
+    const r = await fetch(`${CLINIC.gistApi}/gists/${GIST_ID}`, { cache: "no-store" });
+    if (r.ok){
+      const g = await r.json();
+      GIST_OWNER = g.owner?.login || GIST_OWNER;
+      const f = n => { try { return JSON.parse(g.files?.[n]?.content || "null"); } catch { return null; } };
+      return { clinic: f("clinic.json"), recent: f("recent.json") || [] };
+    }
+  } catch {}
+  const [clinic, recent] = await Promise.all([rawGistFile("clinic.json"), rawGistFile("recent.json")]);
+  return clinic || recent ? { clinic, recent: recent || [] } : null;
+}
+
+async function cardFromGist(id){
+  const raw = await rawGistFile(`card-${id}.json`);
+  if (raw) return raw;
+  if (!GIST_ID) return null;
+  try {
+    const r = await fetch(`${CLINIC.gistApi}/gists/${GIST_ID}`, { cache: "no-store" });
+    if (!r.ok) return null;
+    const g = await r.json();
+    GIST_OWNER = g.owner?.login || GIST_OWNER;
+    const f = g.files?.[`card-${id}.json`];
+    if (!f) return null;
+    if (f.truncated) return await rawGistFile(`card-${id}.json`);
+    return JSON.parse(f.content);
+  } catch { return null; }
+}
+
+function scheduleRecheck(ms){
+  clearTimeout(recheckTimer);
+  recheckTimer = setTimeout(connect, ms);
+}
+
+function setOpen(cfg){
+  CONFIG = cfg; OPEN = true;
+  const status = $("#status");
+  status.className = "status open";
+  if (cfg.mode === "local"){
+    status.textContent = "Running on your own machine.";
+  } else {
+    const rooms = cfg.rooms > 1 ? ` ${cfg.rooms} treatment rooms (GPUs) are running.` : "";
+    status.textContent = "Open now." + rooms;
+  }
+  $("#status-note").textContent = "";
+  $("#link").disabled = false; $("#checkin-btn").disabled = false;
+  const parts = [`The clinic admits text-generation models up to ${cfg.max_model_gb} GB with .safetensors weights.`];
+  if (cfg.runs_per_day) parts.push(`Each visitor gets ${cfg.runs_per_day} visits a day.`);
+  if (cfg.mode === "local") parts.push("Running locally: you can also paste a path to a model folder.");
+  $("#limits-hint").textContent = parts.join(" ");
+  if (cfg.mode === "local") $("#hw").textContent = "your own machine";
+  renderExamples(cfg.max_model_gb);
+  loadRecent();
+  if (API) scheduleRecheck(120000);   // notice if the borrowed GPU goes away
+}
+
+function setClosed(noConfig){
+  const wasOpen = OPEN;
+  OPEN = false;
+  const status = $("#status");
+  status.className = "status closed";
+  status.textContent = noConfig ? "Not connected to a clinic." : "Closed right now.";
+  $("#status-note").textContent = noConfig
+    ? "This page doesn't know where its clinic runs yet. Add your gist to config.js (see the README)."
+    : "The clinic runs on a borrowed GPU that's only switched on for events. You can still open weigh-in cards from earlier visits below, or clone the code and run your own clinic. This page opens by itself when the clinic does.";
+  $("#link").disabled = true; $("#checkin-btn").disabled = true;
+  $("#examples").hidden = true;
+  $("#limits-hint").textContent = "";
+  if (wasOpen){ $("#patient").hidden = true; }
+  loadRecent();
+  if (!noConfig) scheduleRecheck(60000);
+}
+
+async function connect(){
+  // 1. Is this page being served by the clinic's own server?
+  if (!location.hostname.endsWith("github.io")){
+    const c = await probe("");
+    if (c){ API = ""; setOpen(c); return; }
+  }
+  // 2. Otherwise ask the noticeboard where the clinic is today.
+  const g = await readGist();
+  if (g) GIST_RECENT = g.recent || [];
+  if (g?.clinic?.status === "open" && g.clinic.url){
+    const base = String(g.clinic.url).replace(/\/+$/, "");
+    const c = await probe(base);
+    if (c){ API = base; setOpen(c); return; }
+  }
+  setClosed(!GIST_ID);
+}
+
+/* ---------- start ---------- */
+(async function init(){
+  drawDial(16, 0, null, "0 GB", "waiting for a patient");
+  $("#link").disabled = true; $("#checkin-btn").disabled = true;
+  await connect();
+  const id = cardFromLocation();
+  if (id) openCard(id, false);
+})();
+window.addEventListener("popstate", () => {
+  const id = cardFromLocation();
+  if (id) openCard(id, false); else $("#card").hidden = true;
+});
+</script>
+</body>
+</html>

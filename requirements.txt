@@ -1,0 +1,16 @@
+# Engine
+torch>=2.4
+transformers>=4.56,<5
+accelerate>=1.0
+safetensors
+sentencepiece
+tiktoken
+protobuf
+huggingface_hub>=0.34
+# bitsandbytes is used automatically when an NVIDIA GPU is present
+bitsandbytes>=0.46; sys_platform == "linux"
+# Web
+fastapi>=0.115
+uvicorn[standard]
+# Deploy
+modal>=1.0

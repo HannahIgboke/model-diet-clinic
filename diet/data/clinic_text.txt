@@ -1,0 +1,63 @@
+The morning market opens before the sun has properly risen. Traders arrive with folding tables, cool boxes and radios, and within an hour the narrow lanes are full of voices bargaining over tomatoes, peppers, dried fish and bright bolts of cloth. A woman selling yams keeps a notebook of regular customers, writing down who owes her money and who always pays early. Her son, who studies computer science at the university, once offered to build her an app for the notebook. She laughed and told him the notebook had never run out of battery.
+
+Learning to program is a little like learning to cook. At first you follow the recipe exactly, measuring every spoonful, afraid to change anything. Later you understand why each step exists: the onions go in first because they need longer, the salt goes in early because it draws out water, the herbs go in last because heat destroys their smell. Once you know the reasons, you can improvise. A programmer who understands why a loop works can write a different loop for a different problem.
+
+Python became popular partly because it reads almost like English. A beginner can write a few lines that open a file, count the words in it and print the most common ones, without first learning about memory addresses or compilers. That friendliness has a cost: Python is slower than languages like C. But most of the heavy work in data science and machine learning happens inside libraries written in faster languages, so Python acts as the steering wheel while the engine runs underneath.
+
+def word_counts(path):
+    counts = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            for word in line.lower().split():
+                counts[word] = counts.get(word, 0) + 1
+    return sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+
+Rivers shape the cities that grow beside them. Bridges are built where the water is narrow, markets appear where boats can land, and neighbourhoods spread along the banks before they climb the hills. When engineers later lay roads and railways, they often follow the paths that people and goods have already been using for centuries. A modern map of a city is, in a sense, a fossil record of every journey that came before it.
+
+The human brain contains roughly eighty six billion neurons, each connected to thousands of others. No single neuron understands anything. Meaning emerges from the pattern of connections and the strength of each one. Artificial neural networks borrow this idea in a very simplified form: they are collections of numbers, called weights, arranged in layers. During training the weights are nudged, millions of times, until the network's outputs become useful.
+
+A large language model is mostly weights. When people say a model has seven billion parameters, they mean it is made of seven billion numbers. If each number is stored with sixteen bits, that is two bytes per number and about fourteen gigabytes in total. The size of the model on disk is simply the number of parameters multiplied by the number of bytes used to store each one. Change either of those and the model gets lighter or heavier.
+
+My grandmother kept her recipes in her head. When we asked how much flour to use, she would scoop some into her palm, look at it, and say "this much." It took my aunt three years of standing beside her in the kitchen to learn the bread properly. Nobody wrote anything down; the knowledge moved from one person to another by watching, copying, failing and trying again. In a way, every apprentice is a student model being trained by a teacher.
+
+The football match was tied at one goal each with ten minutes remaining. The coach made two substitutions, bringing on a young winger who had barely played all season. Within four minutes the winger had beaten two defenders on the left side and crossed the ball low into the box, where the striker tapped it into the empty net. The stadium erupted. After the match, reporters asked the coach why he had trusted an inexperienced player in such an important moment. He said the boy had been the hardest worker in training all year, and that confidence is only earned by being given the chance.
+
+Good documentation answers three questions: what does this do, why would I use it, and how do I start. Many projects answer only the first question, listing every function and option without ever explaining the purpose. A newcomer reading such documentation is like a tourist handed a dictionary instead of a map. The words are all there, but there is no route from where they are to where they want to go.
+
+When electricity fails in the evening, the street changes character. Generators cough into life one by one, each with its own rhythm, and the air fills with the smell of diesel. Children who were watching television drift outside to play in the light of phone screens. Someone always brings out a radio that runs on batteries. Conversations that would never have happened indoors begin on doorsteps, and for an hour or two the neighbourhood feels more like a village.
+
+Compression is everywhere in computing. A photograph is stored as a JPEG by throwing away detail the eye is unlikely to notice. Music is stored as an MP3 by removing sounds that are masked by louder sounds. In each case the file becomes much smaller, the result is not identical to the original, and the question is always the same: is it still good enough for what we need? Shrinking a machine learning model asks exactly the same question.
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if not self.items:
+            raise IndexError("pop from empty stack")
+        return self.items.pop()
+
+The rainy season arrives with a change in the wind. Clouds pile up in the afternoon, the light turns yellow, and then the rain falls so hard that it bounces off the road. Gutters overflow within minutes. Drivers pull over and wait, because the wipers cannot keep up. Then, almost as suddenly as it began, the storm passes, the sun comes out, and steam rises from the warm tarmac while traders sweep the water away from their stalls.
+
+Teachers often say that you only truly understand something when you can explain it simply. Trying to teach an idea forces you to find the parts you were only pretending to understand. This is why study groups work so well: each member has to explain their piece to the others, and the gaps in their knowledge become obvious. The explanation does not have to be perfect, only honest about what is known and what is still confusing.
+=== EVAL ===
+A bus conductor in a busy city learns to read people quickly. He can tell from the way someone stands at the roadside whether they want his bus or a different one, whether they have the right change, and whether they will argue about the fare. None of this is written in any manual. It is pattern recognition, built from thousands of small encounters, and it is surprisingly similar to what a trained model does when it predicts the next word in a sentence.
+
+Quantization means storing numbers with less precision. Instead of keeping each weight as a sixteen bit number, we round it to one of a small set of values that fit in eight bits or even four bits. Most weights in a large model are small and clustered around zero, so careful rounding loses surprisingly little information. A model quantized to four bits can be about a quarter of its original size and still answer most questions well.
+
+Pruning takes a different approach. Instead of making every number smaller, it removes some numbers entirely. If many weights are close to zero, perhaps they are not doing much, and setting them to exactly zero changes the output only slightly. The difficulty is that a matrix full of zeros still takes up the same space unless the software knows how to skip them. Removing whole layers avoids that problem, because a missing layer genuinely takes no space at all.
+
+Distillation trains a smaller student model to imitate a larger teacher. The student does not only learn the correct answers; it learns how confident the teacher is about every possible answer. When the teacher thinks the next word is probably "river" but might be "road" or "market", the student learns those preferences too. This extra information helps a small model learn far more from each example than it would from the correct answer alone.
+
+The old library smelled of paper and dust. Its shelves reached the ceiling, and a wooden ladder on wheels ran along each wall. The librarian knew where every book was, not because of the catalogue, but because she had put most of them there herself over thirty years. Students came in looking for one book and left with three, because she always knew what else they would need.
+
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+Every engineering decision is a trade-off. A lighter bridge uses less steel but carries less weight. A faster car burns more fuel. A smaller model runs on cheaper hardware but may make more mistakes. The skill is not in avoiding trade-offs, which is impossible, but in understanding them well enough to choose the one that fits the job in front of you.
