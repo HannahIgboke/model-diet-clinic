@@ -51,6 +51,9 @@ h2{font-weight:600; font-size:1.6rem; letter-spacing:-0.01em}
 h3{font-weight:600; font-size:1.15rem}
 p{margin:0}
 .lede{font-size:1.15rem; color:var(--ink-soft); max-width:56ch; margin-top:12px}
+.repo-link{display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:8px 14px; border:2px solid var(--ink); border-radius:999px; font-weight:700; text-decoration:none; color:var(--ink); background:var(--sheet)}
+.repo-link:hover{background:var(--ink); color:var(--sheet)}
+.repo-link svg{width:18px; height:18px; fill:currentColor}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--focus); outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
@@ -210,6 +213,7 @@ footer{margin-top:40px; color:var(--ink-soft); font-size:.92rem}
     <div>
       <h1>Model Diet Clinic</h1>
       <p class="lede">Bring a language model from Hugging Face and put it on a diet: portion control, cut the junk, or hit the gym. Then see how much weight it lost, and whether it's still itself.</p>
+      <a class="repo-link" href="https://github.com/HannahIgboke/model-diet-clinic" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>See the code on GitHub</a>
       <div class="chunky" aria-hidden="true"><img src="img/chunky-before.webp" alt=""><span>DIET →</span><img src="img/chunky-after.webp" alt=""></div>
     </div>
     <div class="scale" aria-hidden="true">
@@ -276,7 +280,7 @@ footer{margin-top:40px; color:var(--ink-soft); font-size:.92rem}
   </section>
 
   <footer>
-    <p>Built by Hannah Igboke for the talk “How to make a 14GB model lose weight”, Python Nigeria, Lagos, October 2026. Models are measured on <span id="hw">a GPU</span>; numbers vary by hardware. Want bigger models or longer training? Clone the code and run your own clinic.</p>
+    <p>Built by Hannah Igboke for the talk “How to make a 14GB model lose weight”, Python Nigeria, Lagos, October 2026. Models are measured on <span id="hw">a GPU</span>; numbers vary by hardware. Want bigger models or longer training? <a href="https://github.com/HannahIgboke/model-diet-clinic" target="_blank" rel="noopener">Get the code on GitHub</a> and run your own clinic.</p>
   </footer>
 </div>
 
@@ -741,7 +745,7 @@ function cardFromLocation(){
 }
 
 async function probe(base){
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
   try {
     const r = await fetch(base + "/api/config", { signal: ctl.signal, cache: "no-store" });
     if (!r.ok) return null;
@@ -823,10 +827,11 @@ function setClosed(noConfig){
   OPEN = false;
   const status = $("#status");
   status.className = "status closed";
-  status.textContent = noConfig ? "Not connected to a clinic." : "Closed right now.";
+  status.textContent = noConfig ? "Not connected to a clinic." : "The clinic is closed right now.";
   $("#status-note").textContent = noConfig
     ? "This page doesn't know where its clinic runs yet. Add your gist to config.js (see the README)."
-    : "The clinic runs on a borrowed GPU that's only switched on for events. You can still open weigh-in cards from earlier visits below, or clone the code and run your own clinic. This page opens by itself when the clinic does.";
+    : "";
+  if (!noConfig) $("#status-note").innerHTML = 'You can still explore the weigh-in cards from earlier visits below, or <a href="https://github.com/HannahIgboke/model-diet-clinic" target="_blank" rel="noopener">get the code on GitHub</a> to run your own clinic.';
   $("#link").disabled = true; $("#checkin-btn").disabled = true;
   $("#examples").hidden = true;
   $("#limits-hint").textContent = "";
@@ -848,6 +853,13 @@ async function connect(){
     const base = String(g.clinic.url).replace(/\/+$/, "");
     const c = await probe(base);
     if (c){ API = base; setOpen(c); return; }
+    // The noticeboard says open but the clinic didn't answer: it may be busy or
+    // just starting. Say so, and look again soon instead of waiting a minute.
+    setClosed(false);
+    $("#status").textContent = "Opening… the clinic is waking up.";
+    $("#status-note").textContent = "Checking again in a few seconds.";
+    scheduleRecheck(15000);
+    return;
   }
   setClosed(!GIST_ID);
 }

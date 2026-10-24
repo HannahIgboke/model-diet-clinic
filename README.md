@@ -1,8 +1,8 @@
 # Model Diet Clinic
 
-**How to put a 14GB model on a diet.**
+**How to make a 14GB model lose weight**
 
-Paste a link to any text-generation model on Hugging Face, pick a diet, and the clinic weighs the model, puts it on the diet, weighs it again, and checks whether it's still itself. You get a weigh-in card with:
+Paste a link to any text-generation model on Hugging Face, pick a diet, and the clinic weighs the model, puts it on the diet, weighs it again, and checks whether it's still itself. You get a card with:
 
 - **Weight**: memory footprint before and after, parameters, bytes per parameter
 - **Health**: perplexity on held-out text, how often the dieted model picks the same next word as the original, and KL divergence between the two
@@ -11,6 +11,44 @@ Paste a link to any text-generation model on Hugging Face, pick a diet, and the 
 - A shareable link to the card, and a list of recent visits
 
 Built for a lightning talk at the Python Nigeria meetup, Lagos, 24 October 2026.
+
+**Try it:** [hannahigboke.github.io/model-diet-clinic](https://hannahigboke.github.io/model-diet-clinic/) (the clinic runs on a borrowed GPU, so it's only open at certain times; weigh-in cards from earlier visits stay viewable).
+
+![The Model Diet Clinic home page: Jumbo before and after the diet, next to a scale reading 4.46 GB, down from 5.75 GB](screenshots/1-home.png)
+
+## See it in action
+
+Here's one real visit: `Qwen/Qwen2.5-3B-Instruct` (5.75 GB) on the *Cut the junk* diet, on a free Kaggle Tesla T4.
+
+**1. Check in your model.** Paste a Hugging Face link or name, or pick one of the examples.
+
+![Check-in box with a model link and example models](screenshots/2-check-in.png)
+
+**2. The clinic weighs it** (size on disk, parameters, number format, layers) **and you choose a diet.**
+
+![The patient's stats and the Portion control diet with 16, 8 and 4-bit options](screenshots/3-patient-and-diets.png)
+
+![The Cut the junk diet with a layers-to-cut slider, and Hit the gym, which is only offered for small models](screenshots/4-diet-options.png)
+
+**3. Treatment, live.** Download, weigh-in, diet and check-up, each step streamed as it happens.
+
+![The four treatment steps, all ticked](screenshots/5-in-treatment.png)
+
+**4. The weigh-in card.** How much weight it lost, and whether it's still itself. This one lost 22% and was faster, but cutting a quarter of its layers was a *crash diet*: it only picked the same next word as the original 40% of the time.
+
+![Weigh-in card: 5.75 GB to 4.46 GB, perplexity up from 12.82 to 47.44, speed up 28%](screenshots/6-weigh-in-card.png)
+
+**5. What was cut, and what changed.** The bars show how much work each layer does; the red ones were cut. Then the same questions, answered before and after.
+
+![Bar chart of work per layer with the cut layers in red, and the first answers before and after](screenshots/7-layers-and-answers.png)
+
+![Answers side by side: the dieted model's code and facts go wrong](screenshots/8-answers-side-by-side.png)
+
+**6. Share it.** Every card gets its own link, and recent visits are listed for everyone.
+
+![Recent visits: a 3B model that lost 22% by cutting the junk, and a 0.5B model that lost 54% with tiny portions](screenshots/9-recent-visits.png)
+
+The lesson from these two visits: cutting layers alone is a blunt diet, while *portion control* at 4 bits took 54% off the smaller model with only mild side effects. That's why portion control is the diet most people use.
 
 ## The three diets
 
@@ -45,7 +83,7 @@ links keep working after the notebook stops. **Step-by-step guide: [SETUP-KAGGLE
 On any machine with an NVIDIA GPU:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/model-diet-clinic.git
+git clone https://github.com/HannahIgboke/model-diet-clinic.git
 cd model-diet-clinic
 pip install -r requirements.txt
 python -m diet.local --public --port 8000
@@ -137,7 +175,7 @@ pytest -q
 
 The tests build tiny random Llama, Qwen2 and GPT-2 models locally, run every diet end to end on CPU, and exercise the API's streaming. No downloads needed.
 
-## Reading the numbers honestly
+## How to read the numbers
 
 - Perplexity and agreement are measured on a short built-in text (`diet/data/clinic_text.txt`), so treat them as a quick health check, not a benchmark.
 - 4-bit models are smaller but not always faster: the GPU has to unpack the numbers first. The card shows the real speed.
