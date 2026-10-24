@@ -14,13 +14,13 @@ Built for a lightning talk at the Python Nigeria meetup, Lagos, 24 October 2026.
 
 ## The three diets
 
-These follow the talk *How to make a 14GB model lose weight* (Hannah Igboke, Python Nigeria, Lagos, October 2026), where Chunky, a 14GB model in a suit that no longer fits, goes on a diet.
+These follow the talk *How to make a 14GB model lose weight* (Hannah Igboke, Python Nigeria, Lagos, October 2026), where Jumbo, a 14GB model in a suit that no longer fits, goes on a diet.
 
 | Diet | In the talk | What it does |
 |---|---|---|
 | **Portion control** (quantization) | Same meal, smaller portions | Keeps every weight but stores it in 16, 8 or 4 bits. Uses [bitsandbytes](https://github.com/bitsandbytes-foundation/bitsandbytes) on a GPU, or the clinic's own ~60-line reference quantizer on CPU (`diet/quantize.py`). |
-| **Trim the hedge** (pruning) | Cut away the dead branches | Measures how much each transformer layer changes what passes through it (Block Influence, from [ShortGPT](https://arxiv.org/abs/2403.03853)) and removes the layers that barely do anything. |
-| **Train an apprentice** (distillation) | Same suit, smaller tailor | Builds a smaller apprentice with fewer layers, then trains it for a short session to copy the master's full next-token probabilities. Watch the training loss fall live. |
+| **Cut the junk** (pruning) | Cut out the empty calories | Measures how much each transformer layer changes what passes through it (Block Influence, from [ShortGPT](https://arxiv.org/abs/2403.03853)) and removes the layers that barely do anything. |
+| **Hit the gym** (distillation) | A smaller model trains by copying every move | Builds a smaller training partner with fewer layers, then trains it for a short session to copy the big model's full next-token probabilities. Watch the training loss fall live. |
 
 Real distillation takes days on billions of words. The clinic's version runs for seconds on a few pages of text, so it's a taste of the method, not a finished product. It's limited to small models because training needs far more memory than the other diets.
 
@@ -109,14 +109,14 @@ Visitors are identified by a salted hash of their IP address; raw addresses are 
 
 ```
 docs/index.html       the clinic page (one file, no build step; also served by GitHub Pages)
-docs/img/              the talk's pictures (Chunky, the plates, the hedge, the tailor)
+docs/img/              the talk's pictures (Jumbo, the plates, the junk food, the gym)
 docs/config.js        which gist the page reads when it's on GitHub Pages
 diet/hub.py           check-in: parse the link, check size and safety from metadata
 diet/fetch.py         download into the shared cache, evict old models
 diet/engine.py        one visit: weigh-in, diet, check-up, weigh-in card
 diet/quantize.py      diet 1: portion control (bitsandbytes + reference quantizer)
-diet/prune.py         diet 2: trim the hedge (layer pruning)
-diet/distill.py       diet 3: train an apprentice (distillation)
+diet/prune.py         diet 2: cut the junk (layer pruning)
+diet/distill.py       diet 3: hit the gym (distillation)
 diet/measure.py       footprint, perplexity, agreement, KL, generation speed
 diet/api.py           FastAPI app: page, /api/inspect, /api/diet (streamed), cards
 diet/local.py         run everything on one machine (yours, or a Kaggle notebook)

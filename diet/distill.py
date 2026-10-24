@@ -39,7 +39,7 @@ def distill(teacher, train_chunks, eval_chunks, keep_fraction=0.5, steps=80,
     student = copy.deepcopy(teacher)
     drop_layers(student, drop)
 
-    emit({"type": "progress", "stage": "diet", "message": "Testing the apprentice before any training…"})
+    emit({"type": "progress", "stage": "diet", "message": "Testing the training partner before any training…"})
     before_gym = compare(teacher, student, eval_chunks)
 
     final_dtype = next(student.parameters()).dtype
@@ -76,7 +76,7 @@ def distill(teacher, train_chunks, eval_chunks, keep_fraction=0.5, steps=80,
 
     return student, {
         "plan": "student",
-        "label": "Train a smaller apprentice",
+        "label": "Train a smaller partner",
         "keep_fraction": keep_fraction,
         "layers_before": len(scores),
         "layers_after": len(scores) - len(drop),

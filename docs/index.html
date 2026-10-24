@@ -209,7 +209,7 @@ footer{margin-top:40px; color:var(--ink-soft); font-size:.92rem}
   <header class="hero">
     <div>
       <h1>Model Diet Clinic</h1>
-      <p class="lede">Bring a language model from Hugging Face and put it on a diet: portion control, trim the hedge, or train an apprentice. Then see how much weight it lost, and whether it's still itself.</p>
+      <p class="lede">Bring a language model from Hugging Face and put it on a diet: portion control, cut the junk, or hit the gym. Then see how much weight it lost, and whether it's still itself.</p>
       <div class="chunky" aria-hidden="true"><img src="img/chunky-before.webp" alt=""><span>DIET →</span><img src="img/chunky-after.webp" alt=""></div>
     </div>
     <div class="scale" aria-hidden="true">
@@ -446,8 +446,8 @@ const PLAN_NOTES = {
   bf16: "Rounds each number to 16 bits. Only helps if the model is stored in 32-bit.",
   int8: "Each number squeezed into 8 bits. Usually almost no quality loss.",
   nf4: "Each number squeezed into 4 bits. The sweet spot most people use.",
-  layers: "Measures how much each layer changes what passes through it, then cuts the dead branches: the layers that barely do anything.",
-  student: "Builds an apprentice with fewer layers, then trains it to copy the master’s answers. A short training session, not a full apprenticeship.",
+  layers: "Measures how much each layer changes what passes through it, then cuts the empty calories: the layers that add weight but barely do anything.",
+  student: "Builds a smaller training partner with fewer layers, then trains it to copy the big model’s answers. A short workout, not a full training plan.",
 };
 
 function renderDiets(){
@@ -504,7 +504,7 @@ function updateOptions(el, key){
   const opts = $(".opts", el);
   if (plan === "layers") opts.innerHTML = slider(`o-${key}-fraction`, "Layers to cut", 0.05, 0.5, 0.05, 0.25, "pct");
   else if (plan === "student") opts.innerHTML =
-      slider(`o-${key}-keep_fraction`, "Layers the apprentice keeps", 0.3, 0.75, 0.05, 0.5, "pct") +
+      slider(`o-${key}-keep_fraction`, "Layers the partner keeps", 0.3, 0.75, 0.05, 0.5, "pct") +
       slider(`o-${key}-steps`, "Training steps", 20, 300, 10, 80, "n");
   else opts.innerHTML = "";
   $$("input[type=range]", opts).forEach(r => r.addEventListener("input", () => {
@@ -551,7 +551,7 @@ function lossChart(curve, w = 680, h = 120){
   if (!curve.length) return "";
   const max = Math.max(...curve), min = Math.min(...curve), span = (max - min) || 1, n = Math.max(curve.length - 1, 1);
   const pts = curve.map((v, i) => `${(56 + (w - 66) * i / n).toFixed(1)},${(10 + (h - 30) * (1 - (v - min) / span)).toFixed(1)}`).join(" ");
-  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Apprentice training loss over training steps">
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Training partner loss over training steps">
     <line class="axis" x1="56" y1="${h-20}" x2="${w-10}" y2="${h-20}"/><line class="axis" x1="56" y1="10" x2="56" y2="${h-20}"/>
     <text x="52" y="16" text-anchor="end">${(+max.toPrecision(2))}</text><text x="52" y="${h-22}" text-anchor="end">${(+min.toPrecision(2))}</text>
     <text x="${w-10}" y="${h-6}" text-anchor="end">step ${curve.length}</text>
@@ -599,7 +599,7 @@ async function runTreatment(body){
               `Downloading: ${size(ev.download.done)} of ${size(ev.download.total)}`;
           }
         } else if (ev.type === "train"){
-          setStage("diet", `Training the apprentice: step ${ev.step} of ${ev.steps}, loss ${fix(ev.loss, 3)}`);
+          setStage("diet", `Training the partner: step ${ev.step} of ${ev.steps}, loss ${fix(ev.loss, 3)}`);
           curve.push(ev.loss); mini.hidden = false; mini.innerHTML = lossChart(curve);
         } else if (ev.type === "result"){
           gotResult = true;
@@ -658,11 +658,11 @@ function renderCard(r, animate){
           return `<rect class="${cut ? "bar-cut" : "bar-ok"}" x="${30 + i * bw + 1}" y="${hgt - 20 - bh}" width="${Math.max(bw - 2, 1)}" height="${bh}"><title>Layer ${i}: ${fix(s, 3)}${cut ? " (removed)" : ""}</title></rect>`; }).join("") +
         `<line class="axis" x1="30" y1="${hgt-20}" x2="${w-10}" y2="${hgt-20}"/><text x="30" y="${hgt-6}">first layer</text><text x="${w-10}" y="${hgt-6}" text-anchor="end">last layer</text></svg></div>`;
     }
-    special = `<div class="section"><h3>${x.plan === "student" ? "How the apprentice was built" : "Which dead branches were cut"}</h3>
-      <p class="explain">Each bar shows how much a layer changes what flows through it. Short bars are the dead branches, layers doing little work. The red ones were cut (${x.layers_before} layers down to ${x.layers_after}).</p>${bars}</div>`;
+    special = `<div class="section"><h3>${x.plan === "student" ? "How the training partner was built" : "Which empty calories were cut"}</h3>
+      <p class="explain">Each bar shows how much a layer changes what flows through it. Short bars are the empty calories: layers doing little work. The red ones were cut (${x.layers_before} layers down to ${x.layers_after}).</p>${bars}</div>`;
     if (x.plan === "student"){
       special += `<div class="section"><h3>The training session</h3>
-        <p class="explain">Before any training, the apprentice agreed with the master on <b class="num">${pct(x.before_gym.agreement)}</b> of next words. After ${x.steps} training steps copying the master, it agrees on <b class="num">${pct(h.agreement)}</b>.</p>
+        <p class="explain">Before any training, the training partner agreed with big Jumbo on <b class="num">${pct(x.before_gym.agreement)}</b> of next words. After ${x.steps} training steps copying big Jumbo, it agrees on <b class="num">${pct(h.agreement)}</b>.</p>
         <div class="chart">${lossChart(x.loss_curve)}</div>
         <p class="explain hint">Real distillation trains for days on billions of words. This was a few seconds on a few pages, so treat it as a taste of the method.</p></div>`;
     }

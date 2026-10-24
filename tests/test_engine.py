@@ -167,9 +167,9 @@ def test_api_stream(models, tmp_path):
     assert c.get(f"/api/result/{rid}").json()["result"]["id"] == rid
     assert c.get("/api/recent").json()["recent"][0]["id"] == rid
     assert c.get(f"/r/{rid}", follow_redirects=False).headers["location"] == f"/?card={rid}"
-    assert c.get("/img/hedge.webp").status_code == 200
+    assert c.get("/img/junk.webp").status_code == 200
     cfg = c.get("/api/config").json()
-    assert cfg["diets"]["prune"]["name"] == "Trim the hedge" and list(cfg["diets"]["prune"]["plans"]) == ["layers"]
+    assert cfg["diets"]["prune"]["name"] == "Cut the junk" and list(cfg["diets"]["prune"]["plans"]) == ["layers"]
     assert os.path.isfile(tmp_path / "results" / f"{rid}.json")
 
     nope = c.post("/api/diet", json={"link": models["llama"], "diet": "juice-cleanse", "plan": "x"})

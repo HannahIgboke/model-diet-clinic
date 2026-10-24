@@ -1,8 +1,8 @@
 """The menu of diets. Kept free of heavy imports so the web server stays light.
 
 The names follow the talk "How to make a 14GB model lose weight":
-portion control (quantization), trim the hedge (pruning) and train an
-apprentice (distillation).
+portion control (quantization), cut the junk (pruning) and hit the gym
+(distillation).
 """
 
 from __future__ import annotations
@@ -21,22 +21,22 @@ DIETS = {
         },
     },
     "prune": {
-        "name": "Trim the hedge",
+        "name": "Cut the junk",
         "technical": "Pruning",
-        "tagline": "Cut away the dead branches",
-        "blurb": "Remove the layers that barely do any work.",
-        "picture": "img/hedge.webp",
+        "tagline": "Cut out the empty calories",
+        "blurb": "Remove the layers that add weight but barely do any work.",
+        "picture": "img/junk.webp",
         "plans": {
-            "layers": "Cut the dead layers",
+            "layers": "Cut the empty-calorie layers",
         },
     },
     "distill": {
-        "name": "Train an apprentice",
+        "name": "Hit the gym",
         "technical": "Distillation",
-        "tagline": "Same suit, smaller tailor",
-        "blurb": "A small new model learns by copying the big one.",
-        "picture": "img/apprentice.webp",
-        "plans": {"student": "Train a smaller apprentice"},
+        "tagline": "A smaller model trains by copying every move",
+        "blurb": "A small new model trains by copying the big one’s answers.",
+        "picture": "img/gym.webp",
+        "plans": {"student": "Train a smaller partner"},
     },
 }
 

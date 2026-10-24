@@ -141,11 +141,11 @@ def treat(model_dir: str, patient: dict, diet: str, plan: str, options: dict | N
         dieted, extras = quantize(original, load, plan, half_dtype=half)
     elif diet == "prune":
         from .prune import layer_prune
-        step("diet", "Looking for dead branches: measuring how hard each layer works…", 0.35)
+        step("diet", "Looking for empty calories: measuring how hard each layer works…", 0.35)
         dieted, extras = layer_prune(original, eval_chunks, opts["fraction"])
     else:
         from .distill import distill
-        step("diet", "Setting up the apprentice’s workbench…", 0.35)
+        step("diet", "Warming up the training partner…", 0.35)
         dieted, extras = distill(original, train_chunks, eval_chunks, keep_fraction=opts["keep_fraction"],
                                  steps=opts["steps"], emit=emit)
     dieted.eval()
